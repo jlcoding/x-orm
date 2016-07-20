@@ -46,6 +46,9 @@ public class Register {
     //getter映射
     public static Map<String, Method> GETTERS_MAP = new HashMap<>();
 
+    //setter映射
+    public static Map<String, Method> SETTERS_MAP = new HashMap<>();
+
     /**
      * 注册model
      * @param basePackage 扫描的包
@@ -87,12 +90,15 @@ public class Register {
                         hasPk = true;
                     }
 
-                    //获取getter
+                    //获取getter/setter
                     String firstLetter = propertyName.substring(0, 1).toUpperCase();
                     String getter = "get" + firstLetter + propertyName.substring(1);
+                    String setter = "set" + firstLetter + propertyName.substring(1);
                     try {
-                        Method method = clazz.getDeclaredMethod(getter);
-                        GETTERS_MAP.put(propertyName, method);
+                        Method getterMethod = clazz.getDeclaredMethod(getter);
+                        Method setterMethod = clazz.getDeclaredMethod(setter, field.getType());
+                        GETTERS_MAP.put(propertyName, getterMethod);
+                        SETTERS_MAP.put(propertyName, setterMethod);
                     } catch (NoSuchMethodException e) {
                         log.error(propertyName + "缺少getter方法");
                         e.printStackTrace();

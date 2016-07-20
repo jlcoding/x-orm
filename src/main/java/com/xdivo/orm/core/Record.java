@@ -101,11 +101,6 @@ public class Record implements Serializable{
         return this;
     }
 
-    public Record setColumns(Model<?> model) {
-        this.getColumns().putAll(model.getAttributes());
-        return this;
-    }
-
     public Record remove(String column) {
         this.getColumns().remove(column);
         return this;
