@@ -25,7 +25,7 @@ public class Db {
      * @param id 主键
      * @return Record
      */
-    public static Record findById(String tableName, String id) {
+    public static Record findById(String tableName, Object id) {
         Record record = new Record();
         String sql = "SELECT * FROM " + tableName + " WHERE " + Register.TABLE_PK_MAP.get(tableName) + " = ?";
         Map<String, Object> resultMap = jdbcTemplate.queryForMap(sql, new Object[]{id});

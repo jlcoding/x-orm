@@ -1,7 +1,5 @@
 package com.xdivo.orm.core;
 
-import com.alibaba.fastjson.JSON;
-
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -148,9 +146,5 @@ public class Record implements Serializable{
     public Object[] getColumnValues() {
         Collection attrValueCollection = this.getColumns().values();
         return attrValueCollection.toArray(new Object[attrValueCollection.size()]);
-    }
-
-    public String toJson() {
-        return JSON.toJSONString(this.getColumns());
     }
 }
