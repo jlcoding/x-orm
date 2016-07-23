@@ -1,4 +1,22 @@
+<hr/>
+##Note 2016-07-24 04:08 &nbsp; 更新0.0.2-SNAPSHOT
+
+1. 增加Model关联关系
+2. 优化注册对象结构
+3. Record增加toModel方法 持有Model关联关系
+
+
+<hr/>
+##Note &nbsp; 0.0.1-SNAPSHOT
+存在严重BUG.根本无法正常使用
+<hr/>
+
+##声明
+
+本工具纯粹写来自用, 并没有与别人竞争的意思, 欢迎大神们给我这个渣渣提提建议, 不喜欢本项目的也不要喷我
+
 ##前言
+
 我是一个曾纠结springboot还是jfinal的渣渣程序员
 
 jfinal的orm超级爽, 但是controller并不是十分方便而且官方并不支持注解.
@@ -13,7 +31,7 @@ oscgit上也有数个基于jfinal的restful框架,但是没有在官方支持下
 
 SpringBoot的简单配置实在让我非常心动, 加上SpringMVC强大又稳定, 所以我最终选择了SpringBoot
 
-但是SpringBoot自带的JPA写起一些多表查询,动态查询实在会死人, 所以我决定写一个基于JDBC类似JFinal的ORM框架
+但是SpringBoot自带的JPA写起一些多表查询,动态查询实在会死人, 所以我决定写一个基于JDBC类似JFinal的ORM框架(其实只算是封装好的工具吧)
 
 ##x-orm简介
 
@@ -63,7 +81,7 @@ public class SpringBootStarter {
         SpringApplication.run(SpringBootStarter.class, args);
         Register.registerModel("com.xdivo.model"); //扫描的包名
         Register.registerRecord("online_class"); //数据库名
-
+        Register.initTheadPool(100, 100, 1000); //初始化线程池 0为使用默认值
     }
 }
 
@@ -80,7 +98,7 @@ public class User extends Model<User> {
 
     @PK
     @Column(name = "id_")
-    private String id;
+    private long id;
 
     @Column(name = "mobile_")
     private String mobile;
@@ -88,11 +106,19 @@ public class User extends Model<User> {
     @Column(name = "password_")
     private String password;
 
-    public String getId() {
+    @Join(refColumn = "id")
+    @Column(name = "room_id_")
+    private Room room;
+
+    @Join(refColumn = "id")
+    @Column(name = "student_id_")
+    private Student student;
+
+    public long getId() {
         return id;
     }
 
-    public User setId(String id) {
+    public User setId(long id) {
         this.id = id;
         return this;
     }
@@ -114,28 +140,87 @@ public class User extends Model<User> {
         this.password = password;
         return this;
     }
+
+    public Room getRoom() {
+        return room;
+    }
+
+    public User setRoom(Room room) {
+        this.room = room;
+        return this;
+    }
+
+    public Student getStudent() {
+        return student;
+    }
+
+    public User setStudent(Student student) {
+        this.student = student;
+        return this;
+    }
 }
 ```
 
 在使用的时候就跟JFinal基本一样了
 ```
 //保存User对象
-User user = new User();
-user.setMobile("abc");
-user.setPassword("123");
-user.save();
+new User().setMobile("abc")
+      .setPassword("123")
+      .save();
 
-//异步保存到数据(更新也一样)
+//根据主键查询User
+User user = new User().findById(id);
+
+//获取关联对象
+
+//异步保存到数据
 user.asyncSave();
 
+//异步更新到数据
+user.asyncUpdate();
+```
+
+```
 //查询record
 Record record = Db.findById("c_user", 23);
+
+//转换到Model(转换到Model后直接使用getter就能获取关联Model)
+User user = record.toModel(User.class);
 
 //保存Record对象
 Record record = new Record()
     .set("mobile_", "abc")
     .set("password_", "123");
 Db.save("c_user", record);
+```
+
+```
+//直接使用JdbcTemplate增加自定义查询 并转换成Model
+Map<String, Object> resultMap = jdbcTemplate.queryForMap("SELECT * FROM user WHERE id = ?", 1);
+User user = new User().mapping(resultMap);
+
+List<Map<String, Object>> resultList = jdbcTemplate.queryForList("SELECT * FROM user");
+List<User> users = new User().mappingList(resultList);
+
+```
+
+```
+/**
+     * 瀑布流分页(暂时只支持Number类型的列)
+     *
+     * @param orderColName  排序列名
+     * @param orderColValue 排序列值
+     * @param direction     方向
+     * @param params        参数
+     * @param pageSize      每页数量
+     * @return ScrollResult
+     */
+    public ScrollResult scroll(String orderColName, Number orderColValue, String direction, Map<String, Object> params, int pageSize)
+
+
+    //滚动分页方法
+    ScrollResult result = user.scroll("id", id, Model.Direction.DESC, null, 2);
+
 ```
 
 像事务那些东西就是基于SpringBoot了.省了一笔功夫
