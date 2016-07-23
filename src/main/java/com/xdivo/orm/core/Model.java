@@ -1,5 +1,6 @@
 package com.xdivo.orm.core;
 
+import com.xdivo.orm.mapping.JoinMap;
 import com.xdivo.orm.result.ScrollResult;
 import com.xdivo.orm.utils.SpringUtils;
 import com.xdivo.orm.utils.ThreadUtils;
@@ -18,7 +19,7 @@ import java.util.Map;
  * 数据库操作模型类
  * Created by jaleel on 16-7-17.
  */
-public class Model<T> implements Serializable {
+public class Model<T> extends BaseModel implements Serializable {
 
     private static final long serialVersionUID = -1453641993600063553L;
 
@@ -30,8 +31,6 @@ public class Model<T> implements Serializable {
 
     private final static Logger log = Logger.getLogger(Model.class);
 
-    private Map<String, Object> attributes;
-
     private JdbcTemplate jdbcTemplate;
 
     private String tableName;
@@ -40,11 +39,11 @@ public class Model<T> implements Serializable {
 
     public Model() {
         this.jdbcTemplate = SpringUtils.getBean(JdbcTemplate.class);
-        this.tableName = Register.TABLE_MAP.get(this.getClass());
-        this.pk = Register.PK_MAP.get(this.getClass());
+        this.tableName = TABLE_MAP.get(this.getClass());
+        this.pk = PK_MAP.get(this.getClass());
     }
 
-    public Model findFirst(String sql, Object... params) {
+    public T findFirst(String sql, Object... params) {
         sql = sql.concat(" LIMIT 1");
         Map<String, Object> resultMap = jdbcTemplate.queryForMap(sql, params);
         return mapping(resultMap);
@@ -59,15 +58,11 @@ public class Model<T> implements Serializable {
         StringBuilder sqlBuilder = new StringBuilder("INSERT INTO ")
                 .append(tableName)
                 .append("(");
-        List<String> fieldNames = Register.FIELDS_MAP.get(this.getClass());
+        List<String> fieldNames = FIELDS_MAP.get(this.getClass());
         List<Object> params = new ArrayList<>();
         StringBuilder values = new StringBuilder("");
-        boolean isPk = false;
         for (String fieldName : fieldNames) {
-            if (pk.equals(fieldName)) {
-                isPk = true;
-            }
-            sqlBuilder.append(Register.PROPERTY_MAP.get(fieldName))
+            sqlBuilder.append(PROPERTY_MAP.get(fieldName))
                     .append(",");
 
             values.append("?")
@@ -91,7 +86,7 @@ public class Model<T> implements Serializable {
      * @return long
      */
     public long update() {
-        List<String> fieldNames = Register.FIELDS_MAP.get(this.getClass());
+        List<String> fieldNames = FIELDS_MAP.get(this.getClass());
         List<Object> params = new ArrayList<>();
         StringBuilder sqlBuilder = new StringBuilder("UPDATE ")
                 .append(tableName)
@@ -100,14 +95,14 @@ public class Model<T> implements Serializable {
             if (pk.equals(fieldName)) {
                 continue;
             }
-            sqlBuilder.append(Register.PROPERTY_MAP.get(fieldName))
+            sqlBuilder.append(PROPERTY_MAP.get(fieldName))
                     .append(" = ?, ");
             //获取属性值
             params.add(getValue(fieldName));
         }
         sqlBuilder.deleteCharAt(sqlBuilder.length() - 1);
         sqlBuilder.append(" WHERE ")
-                .append(Register.PROPERTY_MAP.get(pk))
+                .append(PROPERTY_MAP.get(pk))
                 .append(" = ?");
         params.add(getValue(pk));
         String sql = sqlBuilder.toString();
@@ -147,19 +142,27 @@ public class Model<T> implements Serializable {
      * @param size      返回数量
      * @return 实体列表
      */
-    public List<Model> findByMap(Map<String, Object> params, String orderCol, String direction, int size) {
+    public List<T> findByMap(Map<String, Object> params, String orderCol, String direction, Integer size) {
         List<Object> paramList = new ArrayList<>();
         StringBuilder sqlBuilder = new StringBuilder("SELECT * FROM " + tableName + " Where 1 = 1");
         for (Map.Entry<String, Object> param : params.entrySet()) {
-            sqlBuilder.append(" AND " + Register.PROPERTY_MAP.get(param.getKey()) + " = ? ");
+            sqlBuilder.append(" AND " + PROPERTY_MAP.get(param.getKey()) + " = ? ");
             paramList.add(param.getValue());
         }
-        sqlBuilder.append(" ORDER BY " + Register.PROPERTY_MAP.get(orderCol) + " " + direction);
-        paramList.add(size);
-        sqlBuilder.append(" LIMIT ? ");
+
+        if(!StringUtils.isEmpty(orderCol) && !StringUtils.isEmpty(direction)) {
+            sqlBuilder.append(" ORDER BY " + PROPERTY_MAP.get(orderCol) + " " + direction);
+        }
+
+        if(null != size) {
+            sqlBuilder.append(" LIMIT ? ");
+            paramList.add(size);
+        }
+
         List<Map<String, Object>> results = jdbcTemplate.queryForList(sqlBuilder.toString(), paramList.toArray());
         return mappingList(results);
     }
+
 
     /**
      * 瀑布流分页
@@ -175,8 +178,8 @@ public class Model<T> implements Serializable {
         ScrollResult result = new ScrollResult();
         String operator = null;
         List<Object> paramList = new ArrayList<>();
-        List<Model> dataList = new ArrayList<>();
-        String dataColName = Register.PROPERTY_MAP.get(orderColName);
+        List<T> dataList = new ArrayList<>();
+        String dataColName = PROPERTY_MAP.get(orderColName);
         //升序? 降序?
         if (direction.equals(Direction.ASC)) {
             operator = ">";
@@ -189,7 +192,7 @@ public class Model<T> implements Serializable {
         paramList.add(orderColValue);
         if (null != params && !params.isEmpty()) {
             for (Map.Entry<String, Object> param : params.entrySet()) {
-                sqlBuilder.append(" AND " + Register.PROPERTY_MAP.get(param.getKey()) + " = ? ");
+                sqlBuilder.append(" AND " + PROPERTY_MAP.get(param.getKey()) + " = ? ");
                 paramList.add(param.getValue());
             }
         }
@@ -218,9 +221,9 @@ public class Model<T> implements Serializable {
     }
 
 
-    public Model findById(Object id) {
-        String pkField = Register.PK_MAP.get(this.getClass());
-        String pkColumn = Register.PROPERTY_MAP.get(pkField);
+    public T findById(Object id) {
+        String pkField = PK_MAP.get(this.getClass());
+        String pkColumn = PROPERTY_MAP.get(pkField);
         String sql = "SELECT * FROM " + tableName + " WHERE " + pkColumn + " = ?";
         return mapping(jdbcTemplate.queryForMap(sql, id));
     }
@@ -228,18 +231,27 @@ public class Model<T> implements Serializable {
     /**
      * 获取属性值
      *
-     * @param fieldName 属性名
+     * @param propertyName 属性名
      * @return Object
      */
-    public Object getValue(String fieldName) {
-        Method method = Register.GETTERS_MAP.get(fieldName);
+    public Object getValue(String propertyName) {
+        Method method = GETTERS_MAP.get(propertyName);
         try {
             return method.invoke(this);
         } catch (IllegalAccessException | InvocationTargetException e) {
-            log.error("执行" + fieldName + " 的getter失败");
+            log.error("执行" + propertyName + " 的getter失败");
             e.printStackTrace();
         }
         return null;
+    }
+
+    public void setValue(T model, String propertyName, Object value) {
+        Method method = SETTERS_MAP.get(propertyName);
+        try {
+            method.invoke(model, value);
+        } catch (InvocationTargetException | IllegalAccessException e) {
+            e.printStackTrace();
+        }
     }
 
     /**
@@ -248,8 +260,8 @@ public class Model<T> implements Serializable {
      * @param mapList 数据库记录
      * @return ist<Model>
      */
-    public List<Model> mappingList(List<Map<String, Object>> mapList) {
-        List<Model> models = new ArrayList<>();
+    public List<T> mappingList(List<Map<String, Object>> mapList) {
+        List<T> models = new ArrayList<>();
         for (Map<String, Object> map : mapList) {
             models.add(mapping(map));
         }
@@ -262,25 +274,46 @@ public class Model<T> implements Serializable {
      * @param map 数据库记录
      * @return Model
      */
-    public Model mapping(Map<String, Object> map) {
-        Model model = null;
+    public T mapping(Map<String, Object> map) {
+        T model = null;
         try {
-            model = (Model) this.getClass().newInstance();
+            model = (T)this.getClass().newInstance();
+
+            List<String> joinColumns = new ArrayList<>();
+
+            //检查是否有外键关联
+            List<JoinMap> joinMaps = modelMap.getJoinMaps();
+            for(JoinMap joinMap : joinMaps) {
+                if(null != joinMap) {
+                    Model refModel = (Model) joinMap.getType().newInstance();
+                    Object columnVal = map.get(joinMap.getColumn());
+                    String refColumn = refModel.PROPERTY_MAP.get(joinMap.getRefColumn());
+                    Map<String, Object> resultMap = jdbcTemplate.queryForMap("SELECT * FROM " + refModel.tableName + " WHERE " + refColumn + " = ?", columnVal);
+                    setValue(model, joinMap.getPropertyName(), refModel.mapping(resultMap));
+                    joinColumns.add(joinMap.getColumn());
+                }
+            }
             for (Map.Entry<String, Object> entry : map.entrySet()) {
                 //空值字段直接忽略
                 if (null == entry.getValue()) {
                     continue;
                 }
-                String field = Register.DATA_MAP.get(entry.getKey());
-                Method setter = Register.SETTERS_MAP.get(field);
+
+                //如果是关联属性忽略
+                if (joinColumns.contains(entry.getKey())) {
+                    continue;
+                }
+
+                String field = FIELD_MAP.get(entry.getKey());
+                Method setter = SETTERS_MAP.get(field);
 
                 //没有在映射的字段也忽略
                 if (StringUtils.isEmpty(field) || null == setter) {
                     continue;
                 }
-
                 setter.invoke(model, entry.getValue());
             }
+
         } catch (InvocationTargetException | InstantiationException | IllegalAccessException e) {
             e.printStackTrace();
         }

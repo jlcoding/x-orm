@@ -1,24 +1,22 @@
 package com.xdivo.orm.result;
 
-import com.xdivo.orm.core.Model;
-
 import java.util.List;
 
 /**
  * 分页结果基类
  * Created by liujunjie on 16-7-21.
  */
-public class BaseResult {
+public class BaseResult<T> {
 
-    private List<Model> data;
+    private List<T> data;
 
     private int pageSize;
 
-    public List<Model> getData() {
+    public List<T> getData() {
         return data;
     }
 
-    public BaseResult setData(List<Model> data) {
+    public BaseResult setData(List<T> data) {
         this.data = data;
         return this;
     }

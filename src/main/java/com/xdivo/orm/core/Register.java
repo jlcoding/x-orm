@@ -2,9 +2,14 @@ package com.xdivo.orm.core;
 
 import com.xdivo.orm.annotation.Column;
 import com.xdivo.orm.annotation.Entity;
+import com.xdivo.orm.annotation.Join;
 import com.xdivo.orm.annotation.PK;
+import com.xdivo.orm.mapping.ColumnMap;
+import com.xdivo.orm.mapping.JoinMap;
+import com.xdivo.orm.mapping.ModelMap;
 import com.xdivo.orm.utils.Scanner;
 import com.xdivo.orm.utils.SpringUtils;
+import com.xdivo.orm.utils.ThreadUtils;
 import org.apache.log4j.Logger;
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -25,29 +30,21 @@ public class Register {
 
     private final static Logger log = Logger.getLogger(Register.class);
 
-    //实体与表映射
-    public static Map<Class<?>, String> TABLE_MAP = new HashMap<>();
-
-    //属性与字段映射
-    public static Map<String, String> PROPERTY_MAP = new HashMap<>();
-
-    //数据库字段与属性名映射
-    public static Map<String, String> DATA_MAP = new HashMap<>();
-
-    //实体主键映射
-    public static Map<Class<?>, String> PK_MAP = new HashMap<>();
+    //Model与其属性 数据库字段对应关系
+    public static Map<Class<?>, ModelMap> modelMapping = new HashMap<>();
 
     //表名与主键映射
     public static Map<String, String> TABLE_PK_MAP = new HashMap<>();
 
-    //数据库字段列表映射
-    public static Map<Class<?>, List<String>> FIELDS_MAP = new HashMap<>();
-
-    //getter映射
-    public static Map<String, Method> GETTERS_MAP = new HashMap<>();
-
-    //setter映射
-    public static Map<String, Method> SETTERS_MAP = new HashMap<>();
+    /**
+     * 初始化线程池
+     * @param coreSize coreSize
+     * @param maxPoolSize maxPoolSize
+     * @param queueSize queueSize
+     */
+    public static void initTheadPool (int coreSize, int maxPoolSize, int queueSize){
+        ThreadUtils.init(coreSize, maxPoolSize, queueSize);
+    }
 
     /**
      * 注册model
@@ -64,30 +61,58 @@ public class Register {
             Entity entity = clazz.getAnnotation(Entity.class);
             if(null != entity){
                 String table = entity.table();
-                TABLE_MAP.put(clazz, table.toLowerCase());
+                log.info("正在注册Model " + clazz + " => " + table);
+                ModelMap modelMap = new ModelMap();
 
+                //获取对应表名
+                modelMap.setTable(table);
+
+                List<ColumnMap> columnMaps = new ArrayList<>();
+
+                List<JoinMap> joinMaps = new ArrayList<>();
+
+                //获取model属性
                 Field[] fields = clazz.getDeclaredFields();
 
                 boolean hasPk = false;
-                List<String> fieldNames = new ArrayList<>();
+
+                //遍历属性保存关系
                 for(Field field : fields){
                     Column column = field.getAnnotation(Column.class);
                     if(null == column){
                         continue;
                     }
-                    String dataName = column.name();
-                    String propertyName = field.getName();
-                    fieldNames.add(propertyName);
-                    //添加数据映射
-                    PROPERTY_MAP.put(propertyName, dataName);
 
-                    //添加数据库字段与属性名映射
-                    DATA_MAP.put(dataName, propertyName);
+                    ColumnMap columnMap = new ColumnMap();
+
+                    //数据库字段名
+                    String fieldName = column.name();
+
+                    //属性名
+                    String propertyName = field.getName();
+
+                    //保存属性与数据库字段关系
+                    columnMap.setField(fieldName);
+                    columnMap.setProperty(propertyName);
+
+                    //添加属性与数据库字段映射
+                    columnMaps.add(columnMap);
 
                     //扫描主键
                     if(field.isAnnotationPresent(PK.class) && !hasPk){
-                        PK_MAP.put(clazz, propertyName);
+                        modelMap.setPrimaryKey(propertyName);
                         hasPk = true;
+                    }
+
+                    //扫描关联列
+                    Join join = field.getAnnotation(Join.class);
+                    if(null != join){
+                        JoinMap joinMap = new JoinMap();
+                        joinMap.setColumn(fieldName);
+                        joinMap.setType(field.getType());
+                        joinMap.setPropertyName(propertyName);
+                        joinMap.setRefColumn(join.refColumn());
+                        joinMaps.add(joinMap);
                     }
 
                     //获取getter/setter
@@ -97,14 +122,16 @@ public class Register {
                     try {
                         Method getterMethod = clazz.getDeclaredMethod(getter);
                         Method setterMethod = clazz.getDeclaredMethod(setter, field.getType());
-                        GETTERS_MAP.put(propertyName, getterMethod);
-                        SETTERS_MAP.put(propertyName, setterMethod);
+                        columnMap.setGetter(getterMethod);
+                        columnMap.setSetter(setterMethod);
                     } catch (NoSuchMethodException e) {
                         log.error(propertyName + "缺少getter方法");
                         e.printStackTrace();
                     }
                 }
-                FIELDS_MAP.put(clazz, fieldNames);
+                modelMap.setJoinMaps(joinMaps);
+                modelMap.setColumnMaps(columnMaps);
+                modelMapping.put(clazz, modelMap);
             }
         }
     }
@@ -119,6 +146,7 @@ public class Register {
 
         for(Map<String, Object> tablePk : tablePks) {
             if(tablePk.containsKey("COLUMN_NAME")){
+                log.info("正在注册Record " + (String)tablePk.get("TABLE_NAME") + " => " + (String)tablePk.get("COLUMN_NAME"));
                 TABLE_PK_MAP.put((String)tablePk.get("TABLE_NAME"), (String)tablePk.get("COLUMN_NAME"));
             }
         }
