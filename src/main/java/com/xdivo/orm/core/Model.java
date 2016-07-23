@@ -165,7 +165,7 @@ public class Model<T> extends BaseModel implements Serializable {
 
 
     /**
-     * 瀑布流分页
+     * 瀑布流分页 (暂时只支持Number类型的列)
      *
      * @param orderColName  排序列名
      * @param orderColValue 排序列值
