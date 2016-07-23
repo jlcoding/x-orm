@@ -16,6 +16,16 @@ public class Record implements Serializable{
 
     private Map<String, Object> columns = new HashMap<>();
 
+    public Model toModel(Class<? extends Model> modelClass) {
+        try {
+            Model model = modelClass.newInstance();
+            return (Model)model.mapping(this.getColumns());
+        } catch (InstantiationException | IllegalAccessException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
     public Record clear() {
         this.getColumns().clear();
         return this;
