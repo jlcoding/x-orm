@@ -1,3 +1,4 @@
+#<a href="README-zhCN.md">中文版README</a>
 <hr/>
 ##Note 2016-07-24 04:08 &nbsp; update 0.0.2-SNAPSHOT
 
