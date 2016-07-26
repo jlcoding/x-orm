@@ -29,14 +29,7 @@ public class Db {
         Record record = new Record();
         String sql = "SELECT * FROM " + tableName + " WHERE " + Register.TABLE_PK_MAP.get(tableName) + " = ?";
         Map<String, Object> resultMap = jdbcTemplate.queryForMap(sql, new Object[]{id});
-        if(null != resultMap && !resultMap.isEmpty()) {
-            for(Map.Entry<String, Object> entry : resultMap.entrySet()) {
-                record.set(entry.getKey(), entry.getValue());
-            }
-            return record;
-        }else {
-            return null;
-        }
+        return mapping(resultMap);
     }
 
     /**
@@ -48,17 +41,7 @@ public class Db {
     public static List<Record> find(String sql, Object... param) {
         List<Record> records = new ArrayList<>();
         List<Map<String, Object>> results = jdbcTemplate.queryForList(sql);
-        if(null != results && !results.isEmpty()) {
-            for(Map<String, Object> result : results) {
-                Record record = new Record();
-                for(Map.Entry<String, Object> entry : result.entrySet()) {
-                    record.set(entry.getKey(), entry.getValue());
-                }
-                records.add(record);
-            }
-            return records;
-        }
-        return null;
+        return mappingList(results);
     }
 
     /**
@@ -119,5 +102,25 @@ public class Db {
         params.add(record.get(pkName));
         String sql = sqlBuilder.toString();
         return jdbcTemplate.update(sql, params.toArray());
+    }
+
+    public static Record mapping(Map<String, Object> map) {
+        Record record = new Record();
+        for(Map.Entry<String, Object> entry : map.entrySet()) {
+            record.set(entry.getKey(), entry.getValue());
+        }
+        return record;
+    }
+
+    public static List<Record> mappingList(List<Map<String, Object>> maps) {
+        List<Record> records = new ArrayList<>();
+        if(null != maps && !maps.isEmpty()) {
+            for(Map<String, Object> map : maps) {
+                records.add(mapping(map));
+            }
+            return records;
+        }else {
+            return null;
+        }
     }
 }
