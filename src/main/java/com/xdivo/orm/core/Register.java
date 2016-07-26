@@ -42,7 +42,7 @@ public class Register {
      * @param maxPoolSize maxPoolSize
      * @param queueSize queueSize
      */
-    public static void initTheadPool (int coreSize, int maxPoolSize, int queueSize){
+    public static void initThreadPool (int coreSize, int maxPoolSize, int queueSize){
         ThreadUtils.init(coreSize, maxPoolSize, queueSize);
     }
 
