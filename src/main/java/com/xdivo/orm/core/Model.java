@@ -62,14 +62,14 @@ public class Model<T> extends BaseModel implements Serializable {
         List<Object> params = new ArrayList<>();
         StringBuilder values = new StringBuilder("");
         for (String fieldName : fieldNames) {
-            sqlBuilder.append(PROPERTY_MAP.get(fieldName))
+            sqlBuilder.append(fieldName)
                     .append(",");
 
             values.append("?")
                     .append(",");
 
             //获取属性值
-            params.add(getValue(fieldName));
+            params.add(getValue(FIELD_MAP.get(fieldName)));
         }
         sqlBuilder.deleteCharAt(sqlBuilder.length() - 1)
                 .append(")")
