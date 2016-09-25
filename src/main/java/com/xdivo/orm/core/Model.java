@@ -287,7 +287,7 @@ public class Model<T> extends BaseModel implements Serializable {
                 if(null != joinMap) {
                     Model refModel = (Model) joinMap.getType().newInstance();
                     Object columnVal = map.get(joinMap.getColumn());
-                    String refColumn = refModel.PROPERTY_MAP.get(joinMap.getRefColumn());
+                    String refColumn = joinMap.getRefColumn();
                     Map<String, Object> resultMap = jdbcTemplate.queryForMap("SELECT * FROM " + refModel.tableName + " WHERE " + refColumn + " = ?", columnVal);
                     setValue(model, joinMap.getPropertyName(), refModel.mapping(resultMap));
                     joinColumns.add(joinMap.getColumn());
