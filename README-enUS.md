@@ -1,48 +1,42 @@
+#<a href="README-zhCN.md">中文版README</a>
 <hr/>
-##Note 2016-07-24 04:08 &nbsp; 更新0.0.2-SNAPSHOT
+##Note 2016-07-24 04:08 &nbsp; update 0.0.2-SNAPSHOT
 
-1. 增加Model关联关系
-2. 优化注册对象结构
-3. Record增加toModel方法 持有Model关联关系
+1. add Model reference
+2. optimize register structure
+3. add toModel method to Record, after convertion Model still have its reference
 
 
 <hr/>
 ##Note &nbsp; 0.0.1-SNAPSHOT
-存在严重BUG.根本无法正常使用
+contain serious bug
 <hr/>
 
-##声明
+##Notice
 
-本工具纯粹写来自用, 并没有与别人竞争的意思, 欢迎大神们给我这个渣渣提提建议, 不喜欢本项目的也不要喷我
+this tools or framework, whatever, i just made it for myself and practice how to start a open source project
+i hope predecessors can give me some advice, if u dont like it, tell me why, thanks 
 
-##前言
+##Foreword
 
-我是一个曾纠结springboot还是jfinal的渣渣程序员
+i used to hesitate use springboot or JFinal
 
-jfinal的orm超级爽, 但是controller并不是十分方便而且官方并不支持注解.
+JFinal has a super convenient ORM, but the author think Annotation will increase learning cost, but i'm not a starter, 
 
-jfinal-ext支持注解了但是写起单元测试来十分麻烦. jfinal也不支持restful
+i think annotation will decrease a lot setting.
 
-oscgit上也有数个基于jfinal的restful框架,但是没有在官方支持下感觉十分奇怪,
+finally i choose SpringBoot. but JPA is not born for dynamic query. So i want to code an orm just like JFinal.
 
-比如取PathParam要getAttr(),这样就感觉很奇怪了.
+##x-orm Introduce
 
-最终我败在了Spring的大生态下, 虽然Spring库有点大了, 但是总是有用的.
+x-orm is build on JDBCTemplate, so u don't worry about transaction or datasource, it just like jdbc.
 
-SpringBoot的简单配置实在让我非常心动, 加上SpringMVC强大又稳定, 所以我最终选择了SpringBoot
+Model is an entity+dao Object, just like domain in DDD but not all the same.
 
-但是SpringBoot自带的JPA写起一些多表查询,动态查询实在会死人, 所以我决定写一个基于JDBC类似JFinal的ORM框架(其实只算是封装好的工具吧)
+Record is just like a non-mapping object, it can execute sql query without a entity. In some business is very convenient.
 
-##x-orm简介
-
-跟JFinal一样有Model和Db+Record两种方式, 不过我在Model上加上了注解,这样配置就更加少了.
-
-在注册Record的时候实在比不上波总的JFinal..小弟才疏学浅.感觉在服务启动的性能上比JFinal差多了
-
-功能还在慢慢完善, 不废话了, 有兴趣的小伙伴来试试顺便给个星
-
-##配置
-x-orm是基于SpringBoot+Jdbc的 Maven就依赖这几个东西就好了
+##Setting
+x-orm is base on SpringBoot + Jdbc, so u just need to add these to Maven dependencies
 ```
 <parent>
     <groupId>org.springframework.boot</groupId>
@@ -69,8 +63,15 @@ x-orm是基于SpringBoot+Jdbc的 Maven就依赖这几个东西就好了
 
 
 
-配置上面就非常简单了, 在SpringBoot的服务启动类加上两个注册的语句~如果不需要Record的就不需要填了
-
+besides jdbc and spring setting, startup setting is very easy, you just need add 
+```
+Register.registerModel("com.xdivo.model"); //scan package name
+```
+and 
+```
+Register.registerRecord("online_class"); //database name
+```
+just like
 ```
 @Controller
 @EnableAutoConfiguration
@@ -79,18 +80,20 @@ public class SpringBootStarter {
 
     public static void main(String[] args) throws Exception {
         SpringApplication.run(SpringBootStarter.class, args);
-        Register.registerModel("com.xdivo.model"); //扫描的包名
-        Register.registerRecord("online_class"); //数据库名
-        Register.initTheadPool(100, 100, 1000); //初始化线程池 0为使用默认值
+        Register.registerModel("com.xdivo.model"); //scan package name
+        Register.registerRecord("online_class"); //database name
+        Register.initThreadPool(100, 100, 1000); //init theadpool 0为使用默认值
     }
 }
 
 ```
 
-定义Model
+if you don't need to use Record or ThreadPool, you can delete those line;
+
+define Model
 ```
 /**
- * 用户类
+ * User
  * Created by liujunjie on 16-7-19.
  */
 @Entity(table = "c_user")
@@ -161,33 +164,34 @@ public class User extends Model<User> {
 }
 ```
 
-在使用的时候就跟JFinal基本一样了
+When you use it, it just like JFinal
 ```
-//保存User对象
+//save User
 new User().setMobile("abc")
       .setPassword("123")
       .save();
 
-//根据主键查询User
+//find User by primary key
 User user = new User().findById(id);
 
-//获取关联对象
+//get reference object
+user.getStudent();
 
-//异步保存到数据
+//async save to database
 user.asyncSave();
 
-//异步更新到数据
+//async update to database
 user.asyncUpdate();
 ```
 
 ```
-//查询record
+//use record
 Record record = Db.findById("c_user", 23);
 
-//转换到Model(转换到Model后直接使用getter就能获取关联Model)
+//convert to Model u can still use model to get reference object
 User user = record.toModel(User.class);
 
-//保存Record对象
+//save Record
 Record record = new Record()
     .set("mobile_", "abc")
     .set("password_", "123");
@@ -195,7 +199,7 @@ Db.save("c_user", record);
 ```
 
 ```
-//直接使用JdbcTemplate增加自定义查询 并转换成Model
+//directly use jdbcTemplate and convert to Model
 Map<String, Object> resultMap = jdbcTemplate.queryForMap("SELECT * FROM user WHERE id = ?", 1);
 User user = new User().mapping(resultMap);
 
@@ -206,7 +210,7 @@ List<User> users = new User().mappingList(resultList);
 
 ```
 /**
-     * 瀑布流分页(暂时只支持Number类型的列)
+     * scroll pagation (just support colunm instance of Number)
      *
      * @param orderColName  排序列名
      * @param orderColValue 排序列值
@@ -223,10 +227,9 @@ List<User> users = new User().mappingList(resultList);
 
 ```
 
-像事务那些东西就是基于SpringBoot了.省了一笔功夫
 
 
-
-##联系方式
+##Contact
 ###QQ: 41369927
-###邮箱: 41369927@qq.com
+###E-Mail: 41369927@qq.com
+###WeChat: jay41369927
